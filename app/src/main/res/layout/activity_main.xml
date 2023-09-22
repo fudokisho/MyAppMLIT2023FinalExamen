@@ -12,11 +12,12 @@
         android:layout_height="wrap_content"
         android:layout_margin="10dp"
         android:background="#FFEB3B"
-        android:text="Google ML Kit"
+        android:text="Google ML Kit Campus La Maria"
         android:textAlignment="center"
         android:textSize="20sp"
         android:textStyle="bold"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        tools:layout_editor_absoluteX="10dp" />
 
     <Button
         android:id="@+id/btGallery"
@@ -48,7 +49,7 @@
         android:layout_margin="10dp"
         app:layout_constraintBottom_toTopOf="@+id/txtresults"
         app:layout_constraintTop_toBottomOf="@+id/btGallery"
-        app:srcCompat="@drawable/img"
+        app:srcCompat="@android:drawable/ic_menu_gallery"
         tools:layout_editor_absoluteX="10dp" />
 
     <TextView
@@ -64,35 +65,14 @@
 
     <Button
         android:id="@+id/btText"
-        android:text="OCR"
-        android:layout_margin="10dp"
         android:layout_width="0dp"
         android:layout_height="55dp"
-        android:onClick="OCRfx"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toLeftOf="@id/btFace"
-        app:layout_constraintBottom_toBottomOf="parent"/>
-
-    <Button
-        android:id="@+id/btFace"
         android:layout_margin="10dp"
-        android:layout_width="0dp"
-        android:layout_height="55dp"
-        android:onClick="Rostrosfx"
-        android:text="Rostros"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintRight_toLeftOf="@+id/btPersonalizado"
-        app:layout_constraintLeft_toRightOf="@id/btText" />
-
-    <Button
-        android:id="@+id/btPersonalizado"
-        android:layout_margin="10dp"
-        android:layout_width="0dp"
-        android:layout_height="55dp"
         android:onClick="PersonalizedModel"
-        android:text="Modelo"
+        android:text="Comparar"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintLeft_toRightOf="@id/btFace" />
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -11,13 +11,14 @@ import android.graphics.Paint;
 import android.graphics.drawable.BitmapDrawable;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.text.TextUtils;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import com.example.myappmlit2023.ml.EXAMEN;
 
-import com.example.myappmlit2023.ml.FlowerModel;
-import com.example.myappmlit2023.ml.ModeloFlores;
+
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.mlkit.vision.common.InputImage;
@@ -30,11 +31,9 @@ import com.google.mlkit.vision.text.TextRecognition;
 import com.google.mlkit.vision.text.TextRecognizer;
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions;
 
-
 import org.tensorflow.lite.DataType;
 import org.tensorflow.lite.support.image.ImageProcessor;
 import org.tensorflow.lite.support.image.TensorImage;
-
 import org.tensorflow.lite.support.image.ops.ResizeOp;
 import org.tensorflow.lite.support.image.ops.Rot90Op;
 import org.tensorflow.lite.support.label.Category;
@@ -44,21 +43,21 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.text.DecimalFormat;
-import java.util.Collections;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 
 public class MainActivity
         extends AppCompatActivity
-    implements OnSuccessListener<Text>,
+        implements OnSuccessListener<Text>,
         OnFailureListener {
-
     public static int REQUEST_CAMERA = 111;
     public static int REQUEST_GALLERY = 222;
 
     Bitmap mSelectedImage;
     ImageView mImageView;
     TextView txtResults;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -66,31 +65,40 @@ public class MainActivity
         mImageView = findViewById(R.id.image_view);
         txtResults = findViewById(R.id.txtresults);
     }
-
     public void abrirGaleria (View view){
         Intent i = new Intent(Intent.ACTION_PICK,
                 android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
         startActivityForResult(i, REQUEST_GALLERY);
     }
-    public void abrirCamera (View view){
-        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        startActivityForResult(intent, REQUEST_CAMERA);
+    public void onCameraButtonClick(View view) {
+        launchCamera();
+    }
+
+    private void launchCamera() {
+        Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE_SECURE);
+        startActivityForResult(cameraIntent, REQUEST_CAMERA);
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (resultCode == RESULT_OK && null != data) {
-            try {
-                if (requestCode == REQUEST_CAMERA)
-                    mSelectedImage = (Bitmap) data.getExtras().get("data");
-                else
-                    mSelectedImage = MediaStore.Images.Media.getBitmap(getContentResolver(), data.getData());
-                mImageView.setImageBitmap(mSelectedImage);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
+        if (resultCode == RESULT_OK && data != null) {
+            handleImageCapture(requestCode, data);
         }
+    }
+
+    private void handleImageCapture(int requestCode, Intent data) {
+        try {
+            mSelectedImage = requestCode == REQUEST_CAMERA ? (Bitmap) data.getExtras().get("data")
+                    : MediaStore.Images.Media.getBitmap(getContentResolver(), data.getData());
+            displayCapturedImage();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void displayCapturedImage() {
+        mImageView.setImageBitmap(mSelectedImage);
     }
 
     public void OCRfx(View v) {
@@ -127,63 +135,6 @@ public class MainActivity
         }
         txtResults.setText(resultados);
     }
-    public void Rostrosfx(View v) {
-        BitmapDrawable drawable = (BitmapDrawable) mImageView.getDrawable();
-        Bitmap bitmap = drawable.getBitmap().copy(Bitmap.Config.ARGB_8888,true);
-        Canvas canvas = new Canvas(bitmap);
-        Paint paint = new Paint();
-        paint.setColor(Color.BLUE);
-        paint.setStrokeWidth(15);
-        paint.setStyle(Paint.Style.STROKE);
-
-        InputImage image = InputImage.fromBitmap(mSelectedImage, 0);
-        FaceDetectorOptions options =
-                new FaceDetectorOptions.Builder()
-                        .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
-                        .setContourMode(FaceDetectorOptions.CONTOUR_MODE_ALL)
-                        .build();
-        FaceDetector detector = FaceDetection.getClient(options);
-        detector.process(image)
-                .addOnSuccessListener(new OnSuccessListener<List<Face>>() {
-                    @Override
-                    public void onSuccess(List<Face> faces) {
-                        if (faces.size() == 0) {
-                            txtResults.setText("No Hay rostros");
-                        }else{
-                            txtResults.setText("Hay " + faces.size() + " rostro(s)");
-
-                            for (Face rostro: faces) {
-                               canvas.drawRect(rostro.getBoundingBox(), paint);
-                            }
-
-                        }
-                    }
-                })
-                .addOnFailureListener(this);
-
-        mImageView.setImageBitmap(bitmap);
-    }
-
-
-
-
-    public void PersonalizedModel1(View v) {
-        try {
-            FlowerModel model = FlowerModel.newInstance(getApplicationContext());
-            TensorImage imagen = TensorImage.fromBitmap(mSelectedImage);
-            FlowerModel.Outputs outputs = model.process(imagen);
-            List<Category> probability = outputs.getProbabilityAsCategoryList();
-            Collections.sort(probability, new CategoryComparator());
-            String res="";
-            for (int i = 0; i < probability.size(); i++) {
-                res = res + probability.get(i).getLabel() + " " + probability.get(i).getScore()*100 + " % \n";
-            }
-            txtResults.setText(res);
-            model.close();
-        } catch (IOException e) {
-            txtResults.setText("Error al procesar Modelo");
-        }
-    }
 
     public ByteBuffer convertirImagenATensorBuffer(Bitmap mSelectedImage){
 
@@ -206,7 +157,6 @@ public class MainActivity
         }
         return  byteBuffer;
     }
-
     public String obtenerEtiquetayProbabilidad(String[] etiquetas, float[] probabilidades){
 
         float valorMayor=Float.MIN_VALUE;
@@ -226,13 +176,13 @@ public class MainActivity
         try {
 
             //Definir Estiquetas de acuerdo a su archivo "labels.txt" generado por la Plataforma de creación del Modelo
-            String[] etiquetas = {"Dientes de León", "Margaritas","Tulipanes", "Girasoles", "Rosas"};
+            String[] etiquetas = {"LABORATORIO INDUSTRIAL","CENTRO MEDICO","POLIDEPORTIVO","BIBLIOTECA","FACULTAD CAYF","PARQUEADERO","FACULTAD FCI","LABORATORIO ACUICULTURA","COMEDOR","FACULTAD FCIP","LABORATORIO AGROINDUSTRIAL","BAÑOS"};
 
-            ModeloFlores model = ModeloFlores.newInstance(getApplicationContext());
+            EXAMEN model = EXAMEN.newInstance(getApplicationContext());
             TensorBuffer inputFeature0 = TensorBuffer.createFixedSize(new int[]{1, 224, 224, 3}, DataType.FLOAT32);
             inputFeature0.loadBuffer(convertirImagenATensorBuffer(mSelectedImage));
 
-            ModeloFlores.Outputs outputs = model.process(inputFeature0);
+            EXAMEN.Outputs outputs = model.process(inputFeature0);
             TensorBuffer outputFeature0 = outputs.getOutputFeature0AsTensorBuffer();
 
             txtResults.setText(obtenerEtiquetayProbabilidad(etiquetas, outputFeature0.getFloatArray()));
@@ -242,56 +192,63 @@ public class MainActivity
             txtResults.setText(e.getMessage());
         }
     }
-
-    public void PersonalizedModel33(View v) {
-        try {
-            ModeloFlores model = ModeloFlores.newInstance(getApplicationContext());
-
-            Bitmap imagen_escalada = Bitmap.createScaledBitmap(mSelectedImage,
-                    224,224,true);
-
-
-            ImageProcessor imageProcessor =
-                    new ImageProcessor.Builder()
-                            .add(new ResizeOp(224, 224, ResizeOp.ResizeMethod.BILINEAR))
-                            .add(new Rot90Op(-90 / 90))
-                            .build();
-
-            TensorImage tensorImage = new TensorImage(DataType.FLOAT32);
-            tensorImage.load(mSelectedImage);
-            tensorImage = imageProcessor.process(tensorImage);
-
-
-            //TensorImage imagen = new TensorImage(DataType.FLOAT32);
-            //imagen.load(imagen_escalada);
-            TensorBuffer inputFeature0 = TensorBuffer.createFixedSize(new int[]{1, 224, 224, 3}, DataType.FLOAT32);
-            inputFeature0.loadBuffer(tensorImage.getBuffer());
-
-            ModeloFlores.Outputs outputs = model.process(inputFeature0);
-            TensorBuffer outputFeature0 = outputs.getOutputFeature0AsTensorBuffer();
-
-            String[] etiquetas = {"Dientes de León", "Margaritas","Tulipanes", "Girasoles", "Rosas"};
-
-            float[] probabilidades = outputFeature0.getFloatArray();
-            float valorMayor=Float.MIN_VALUE;     int pos=-1;
-            String  res="";
-            for (int i = 0; i < probabilidades.length; i++) {
-                if(probabilidades[i]>valorMayor){
-                    valorMayor = probabilidades[i];
-                    pos = i;
-                }
-
-                res = res + etiquetas[i] + " " + probabilidades[i]*100 + "\n";
-            }
-            txtResults.setText(res);
-
-            model.close();
-        } catch (IOException e) {
-            // TODO Handle the exception
+    public String obtenerEtiquetayProbabilidad2(String[] etiquetas, float[] probabilidades) {
+        // Crear una matriz de pares (etiqueta, probabilidad) para ordenar
+        Pair[] pairs = new Pair[etiquetas.length];
+        for (int i = 0; i < etiquetas.length; i++) {
+            pairs[i] = new Pair(etiquetas[i], probabilidades[i]);
         }
 
+        // Ordenar la matriz en orden descendente según las probabilidades
+        Arrays.sort(pairs, new Comparator<Pair>() {
+            @Override
+            public int compare(Pair pair1, Pair pair2) {
+                // Compara las probabilidades en orden descendente
+                return Float.compare(pair2.probabilidad, pair1.probabilidad);
+            }
+        });
+
+        // Construir la cadena de resultado ordenada
+        StringBuilder resultado = new StringBuilder();
+
+        for (Pair pair : pairs) {
+            resultado.append(pair.etiqueta).append(": ").append(pair.probabilidad * 100).append("%\n");
+        }
+
+        return resultado.toString();
     }
 
+    // Clase auxiliar para representar un par (etiqueta, probabilidad)
+    class Pair {
+        String etiqueta;
+        float probabilidad;
+
+        public Pair(String etiqueta, float probabilidad) {
+            this.etiqueta = etiqueta;
+            this.probabilidad = probabilidad;
+        }
+    }
+
+    public void PersonalizedModel2(View v){
+        try {
+
+            //Definir Estiquetas de acuerdo a su archivo "labels.txt" generado por la Plataforma de creación del Modelo
+            String[] etiquetas = {"LABORATORIO INDUSTRIAL","CENTRO MEDICO","POLIDEPORTIVO","BIBLIOTECA","FACULTAD CAYF","PARQUEADERO","FACULTAD FCI","LABORATORIO ACUICULTURA","COMEDOR","FACULTAD FCIP","LABORATORIO AGROINDUSTRIAL","BAÑOS"};
+
+            EXAMEN model = EXAMEN.newInstance(getApplicationContext());
+            TensorBuffer inputFeature0 = TensorBuffer.createFixedSize(new int[]{1, 224, 224, 3}, DataType.FLOAT32);
+            inputFeature0.loadBuffer(convertirImagenATensorBuffer(mSelectedImage));
+
+            EXAMEN.Outputs outputs = model.process(inputFeature0);
+            TensorBuffer outputFeature0 = outputs.getOutputFeature0AsTensorBuffer();
+
+            txtResults.setText(obtenerEtiquetayProbabilidad2(etiquetas, outputFeature0.getFloatArray()));
+
+            model.close();
+        } catch (Exception e) {
+            txtResults.setText(e.getMessage());
+        }
+    }
 
     class CategoryComparator implements java.util.Comparator<Category> {
         @Override
